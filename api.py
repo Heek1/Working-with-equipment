@@ -19,6 +19,7 @@ equipment_list.append(Equipment(5, "Ноутбук ASUS",    "computer",  "SN-00
 eq_id = 6
 
 
+
 @router.get("/equipment")
 async def get_all_equipment(request: Request):
     global equipment_list
