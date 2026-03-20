@@ -99,3 +99,4 @@ def get_equipment_issues(eid: int):
     result = [i for i in issue_list if i.eq_id == eid]
     return [i.to_dict() for i in reversed(result)]
 
+
