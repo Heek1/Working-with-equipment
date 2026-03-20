@@ -81,6 +81,46 @@ async def add_equipment(request: Request):
     return obj.to_dict()
 
 
+@router.patch("/equipment/{eid}/status")
+async def update_status(eid: int, request: Request):
+    data       = await request.json()
+    new_status = data.get("status")
+    new_desc   = data.get("description")
+
+    for e in equipment_list:
+        if e.eq_id == eid:
+            if new_status:
+                e.change_status(new_status)
+            if new_desc:
+                e.description = new_desc
+            return e.to_dict()
+
+    return {"message": "Equipment not found"}
+
+
+
+@router.post("/equipment/move")
+async def move_equipment(request: Request):
+    global mov_id
+
+    data     = await request.json()
+    eid      = data.get("eq_id")
+    new_room = data.get("new_room")
+    reason   = data.get("reason", "")
+
+    if not eid or not new_room:
+        return {"message": "eq_id and new_room are required"}
+
+    for e in equipment_list:
+        if e.eq_id == eid:
+            record = Movement(mov_id, eid, e.room, new_room, reason)
+            movement_list.append(record)
+            mov_id += 1
+            e.change_room(new_room)
+            return record.to_dict()
+
+    return {"message": "Equipment not found"}
+
 
 @router.get("/movements")
 def get_movements():
@@ -91,12 +131,4 @@ def get_movements():
 def get_equipment_movements(eid: int):
     result = [m for m in movement_list if m.eq_id == eid]
     return [m.to_dict() for m in reversed(result)]
-
-
-
-@router.get("/equipment/{eid}/issues")
-def get_equipment_issues(eid: int):
-    result = [i for i in issue_list if i.eq_id == eid]
-    return [i.to_dict() for i in reversed(result)]
-
 
