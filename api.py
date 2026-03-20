@@ -133,3 +133,80 @@ def get_equipment_movements(eid: int):
     result = [m for m in movement_list if m.eq_id == eid]
     return [m.to_dict() for m in reversed(result)]
 
+
+
+@router.post("/issues/add")
+async def add_issue(request: Request):
+    global issue_id
+
+    data        = await request.json()
+    eid         = data.get("eq_id")
+    description = data.get("description")
+    severity    = data.get("severity", "medium")
+
+    if not eid or not description:
+        return {"message": "eq_id and description are required"}
+
+    found = any(e.eq_id == eid for e in equipment_list)
+    if not found:
+        return {"message": "Equipment not found"}
+
+    obj = TechIssue(issue_id, eid, description, severity)
+    issue_list.append(obj)
+    issue_id += 1
+
+    return obj.to_dict()
+
+
+@router.get("/issues")
+async def get_issues(request: Request):
+    params   = dict(request.query_params)
+    resolved = params.get("resolved")
+
+    result = issue_list
+    if resolved == "true":
+        result = [i for i in result if i.resolved]
+    elif resolved == "false":
+        result = [i for i in result if not i.resolved]
+
+    return [i.to_dict() for i in reversed(result)]
+
+
+@router.get("/equipment/{eid}/issues")
+def get_equipment_issues(eid: int):
+    result = [i for i in issue_list if i.eq_id == eid]
+    return [i.to_dict() for i in reversed(result)]
+
+
+@router.patch("/issues/{iid}/resolve")
+def resolve_issue(iid: int):
+    for i in issue_list:
+        if i.issue_id == iid:
+            i.resolve()
+            return i.to_dict()
+    return {"message": "Issue not found"}
+
+
+
+@router.get("/statistics")
+def get_statistics():
+    statuses = [e.status for e in equipment_list]
+    by_cat   = {}
+    by_room  = {}
+
+    for e in equipment_list:
+        by_cat[e.category] = by_cat.get(e.category, 0) + 1
+        by_room[e.room]    = by_room.get(e.room, 0) + 1
+
+    return {
+        "total":             len(equipment_list),
+        "working":           statuses.count("working"),
+        "faulty":            statuses.count("faulty"),
+        "under_repair":      statuses.count("under_repair"),
+        "decommissioned":    statuses.count("decommissioned"),
+        "by_category":       by_cat,
+        "by_room":           by_room,
+        "total_movements":   len(movement_list),
+        "total_issues":      len(issue_list),
+        "unresolved_issues": sum(1 for i in issue_list if not i.resolved)
+    }
